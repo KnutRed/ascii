@@ -27,7 +27,7 @@ const canvasPixel = document.getElementById('canvas-video-pixel')
 const ctx3 = canvasPixel.getContext("2d");
 
 var webcamAspectRatio = 1;
-var webcamVideoMaxWidth = 1080;
+var webcamVideoMaxWidth = 3840;
 var resizedWebcamWidth = Math.min(webcamVideoMaxWidth,Math.floor(window.innerWidth));
 var resizedWebcamHeight = Math.round(resizedWebcamWidth / webcamAspectRatio);
 
@@ -36,7 +36,7 @@ var defaultVideoHeight = 848;
 var canvasWidth = defaultVideoWidth;
 var canvasHeight = defaultVideoHeight;
 
-var maxCanvasWidth = 1080;
+var maxCanvasWidth = 3840;
 
 var pixelSize;
 var numCols;
@@ -83,7 +83,7 @@ var videoRecordInterval;
 var videoEncoder;
 var muxer;
 var mobileRecorder;
-var videofps = 12;
+var videofps = 25;
 var frameNumber = 0;
 
 //detect user browser
@@ -859,7 +859,7 @@ async function recordVideoMuxer() {
         codec: "avc1.42003e",
         width: videoWidth,
         height: videoHeight,
-        bitrate: 14_000_000,
+        bitrate: 40000000,
         bitrateMode: "constant",
     });
     //NEW codec: "avc1.42003e",
