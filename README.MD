@@ -1,3 +1,5 @@
+# This Fork is created to create 4k videos with 25p
+
 Turn videos into ASCII pixel art! Use your webcam feed or upload a video, then use the controls to adjust the colors, resolution, text style, etc...
 
 Live website: https://collidingscopes.github.io/ascii
@@ -14,6 +16,6 @@ Enormous thanks and credits to <a href="https://medium.com/@sasha.kub95/webcam-s
 
 <a href="https://www.buymeacoffee.com/stereodrift" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
-License
-=======
+# License
+
 This is an open source project provided under an <a href="https://opensource.org/license/MIT">MIT license</a>
