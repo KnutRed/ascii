@@ -1,5 +1,7 @@
 # This Fork is created to create 4k videos with 25p
 
+There are some bugs with the fps fyi
+
 Turn videos into ASCII pixel art! Use your webcam feed or upload a video, then use the controls to adjust the colors, resolution, text style, etc...
 
 Live website: https://collidingscopes.github.io/ascii
