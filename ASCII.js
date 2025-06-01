@@ -540,7 +540,6 @@ function refresh() {
   backgroundRGB = hexToRgb(backgroundColor);
   backgroundHue = getHueFromHex(backgroundColor);
   backgroundSaturation = obj.backgroundSaturation;
-
   backgroundGradient = obj.backgroundGradient;
   threshold = obj.threshold / 100;
   textInput = obj.textInput;
