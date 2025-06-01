@@ -95,7 +95,7 @@ var videoRecordInterval;
 var videoEncoder;
 var muxer;
 var mobileRecorder;
-var videofps = 25;
+var videofps = 30;
 var frameNumber = 0;
 
 //detect user browser
@@ -343,8 +343,7 @@ const render = (ctx) => {
     let shouldCache = true;
 
     if (videoType == "Webcam") {
-      // For webcam, don't cache since it's live feed - always different
-      shouldCache = false;
+      // Cache webcam frames too - use counter as time for webcam
       currentTime = counter;
     } else if (videoType == "Select Video") {
       currentTime = userVideo.currentTime;
@@ -1157,6 +1156,8 @@ async function renderCanvasToVideoFrameAndEncode({
   let frame = new VideoFrame(canvas, {
     // Equally spaces frames out depending on frames per second
     timestamp: (frameNumber * 1e6) / videofps,
+    // Add duration to ensure proper frame timing
+    duration: 1e6 / videofps,
   });
 
   // The encode() method of the VideoEncoder interface asynchronously encodes a VideoFrame
