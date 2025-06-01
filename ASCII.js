@@ -58,6 +58,15 @@ var effectWidthLabel = document.getElementById("effectWidthLabel");
 var videoPixels = [];
 var grayscaleDataArray = [];
 
+// Video frame caching system
+var frameCache = new Map();
+var maxCacheSize = 100; // Maximum number of cached frames
+var cacheKeys = []; // To track insertion order for LRU eviction
+var lastVideoTime = -1;
+var cacheEnabled = true;
+var cacheHits = 0;
+var cacheMisses = 0;
+
 var fontFamily = "Courier New";
 var fontSize;
 //ctx.font;
@@ -132,6 +141,7 @@ var obj = {
   randomness: 15,
   invert: false,
   animationType: "Random Text",
+  cacheSize: 100,
 };
 
 var videoType = "Default";
@@ -153,6 +163,55 @@ var threshold = obj.threshold / 100;
 var textInput = obj.textInput;
 var randomness = obj.randomness / 100;
 var invertToggle = obj.invert;
+
+// Cache management functions
+function clearFrameCache() {
+  frameCache.clear();
+  cacheKeys.length = 0;
+  lastVideoTime = -1;
+  cacheHits = 0;
+  cacheMisses = 0;
+  console.log("Frame cache cleared");
+}
+
+function toggleFrameCache() {
+  cacheEnabled = !cacheEnabled;
+  if (!cacheEnabled) {
+    clearFrameCache();
+  }
+  console.log("Frame cache " + (cacheEnabled ? "enabled" : "disabled"));
+}
+
+function getCacheStats() {
+  const hitRate =
+    cacheHits + cacheMisses > 0
+      ? ((cacheHits / (cacheHits + cacheMisses)) * 100).toFixed(1)
+      : 0;
+  return {
+    size: frameCache.size,
+    maxSize: maxCacheSize,
+    enabled: cacheEnabled,
+    memoryUsage:
+      frameCache.size > 0
+        ? `${Math.round((frameCache.size / maxCacheSize) * 100)}%`
+        : "0%",
+    hits: cacheHits,
+    misses: cacheMisses,
+    hitRate: hitRate + "%",
+  };
+}
+
+// Define showCacheStats function before GUI creation
+obj["showCacheStats"] = function () {
+  const stats = getCacheStats();
+  alert(`Frame Cache Statistics:
+Size: ${stats.size}/${stats.maxSize} frames
+Memory Usage: ${stats.memoryUsage}
+Status: ${stats.enabled ? "Enabled" : "Disabled"}
+Cache Hits: ${stats.hits}
+Cache Misses: ${stats.misses}
+Hit Rate: ${stats.hitRate}`);
+};
 
 var gui = new dat.gui.GUI({ autoPlace: false });
 gui.close();
@@ -236,6 +295,33 @@ obj["saveVideo"] = function () {
 };
 gui.add(obj, "saveVideo").name("Start/Stop Video Export");
 
+obj["clearCache"] = function () {
+  clearFrameCache();
+};
+gui.add(obj, "clearCache").name("Clear Frame Cache");
+
+obj["toggleCache"] = function () {
+  toggleFrameCache();
+};
+gui.add(obj, "toggleCache").name("Toggle Frame Cache");
+
+gui
+  .add(obj, "cacheSize")
+  .min(10)
+  .max(500)
+  .step(10)
+  .name("Cache Size")
+  .onChange(function () {
+    maxCacheSize = obj.cacheSize;
+    // If current cache exceeds new limit, trim it
+    while (frameCache.size > maxCacheSize) {
+      const oldestKey = cacheKeys.shift();
+      frameCache.delete(oldestKey);
+    }
+  });
+
+gui.add(obj, "showCacheStats").name("Show Cache Stats");
+
 customContainer = document.getElementById("gui");
 customContainer.appendChild(gui.domElement);
 
@@ -252,6 +338,39 @@ useWebcamButton.addEventListener("click", function () {
 //turn video input into still images, and then into pixelated grayscale values
 const render = (ctx) => {
   if (canvasWidth && canvasHeight) {
+    // Generate cache key based on current video state
+    let currentTime = 0;
+    let shouldCache = true;
+
+    if (videoType == "Webcam") {
+      // For webcam, don't cache since it's live feed - always different
+      shouldCache = false;
+      currentTime = counter;
+    } else if (videoType == "Select Video") {
+      currentTime = userVideo.currentTime;
+    } else if (videoType == "Default") {
+      currentTime = defaultVideo.currentTime;
+    }
+
+    const cacheKey = `${videoType}_${currentTime.toFixed(
+      3
+    )}_${pixelSizeFactor}_${canvasWidth}_${canvasHeight}`;
+    // Check if we have cached data for this frame
+    if (cacheEnabled && shouldCache && frameCache.has(cacheKey)) {
+      const cachedData = frameCache.get(cacheKey);
+      grayscaleDataArray = cachedData.grayscaleData;
+      videoPixels = cachedData.videoPixels;
+
+      // Move to end for LRU
+      cacheKeys = cacheKeys.filter((key) => key !== cacheKey);
+      cacheKeys.push(cacheKey);
+
+      cacheHits++;
+      return;
+    }
+
+    cacheMisses++;
+
     canvasRaw.width = canvasWidth;
     canvasRaw.height = canvasHeight;
 
@@ -301,9 +420,7 @@ const render = (ctx) => {
 
         var avgColor = getAverageColor(cellPixels);
         //ctx3.fillStyle = `rgba(${avgColor[0]}, ${avgColor[1]}, ${avgColor[2]}, ${alpha})`;
-        //ctx3.fillRect(cellX*pixelSize, cellY*pixelSize, pixelSize, pixelSize);
-
-        //videoPixels.push(avgColor[0]);
+        //ctx3.fillRect(cellX*pixelSize, cellY*pixelSize, pixelSize, pixelSize);        //videoPixels.push(avgColor[0]);
         //videoPixels.push(avgColor[1]);
         //videoPixels.push(avgColor[2]);
         //videoPixels.push(alpha);
@@ -313,6 +430,29 @@ const render = (ctx) => {
         grayscaleDataArray[cellY][cellX] = grayScaleValue;
       }
     }
+    // Cache the processed frame data
+    if (cacheEnabled && shouldCache) {
+      const cacheData = {
+        grayscaleData: JSON.parse(JSON.stringify(grayscaleDataArray)),
+        videoPixels: [...videoPixels],
+      };
+
+      // Add to cache
+      frameCache.set(cacheKey, cacheData);
+      cacheKeys.push(cacheKey);
+
+      // Implement LRU cache eviction
+      if (frameCache.size > maxCacheSize) {
+        const oldestKey = cacheKeys.shift();
+        frameCache.delete(oldestKey);
+      }
+
+      console.log(
+        `Cached frame: ${cacheKey} (${frameCache.size}/${maxCacheSize})`
+      );
+    }
+
+    lastVideoTime = currentTime;
   } else {
     ctx2.fillStyle = "#fff";
     ctx2.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -517,6 +657,9 @@ function refresh() {
   console.log("refresh");
   console.log("canvas width/height: " + canvasWidth + ", " + canvasHeight);
 
+  // Clear cache when settings change
+  clearFrameCache();
+
   document
     .getElementById("canvasDiv")
     .setAttribute("style", "width: " + canvasWidth + "px;");
@@ -581,6 +724,9 @@ function togglePausePlay() {
 
 function changeVideoType() {
   stopVideo();
+
+  // Clear cache when changing video type
+  clearFrameCache();
 
   if (videoType == "Webcam") {
     startWebcam();
