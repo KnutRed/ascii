@@ -88,6 +88,7 @@ var muxer;
 var mobileRecorder;
 var videofps = 30;
 var frameNumber = 0;
+let lastEncodeTime = 0;
 
 //detect user browser
 var ua = navigator.userAgent;
@@ -481,15 +482,22 @@ function loop() {
     }
 
     renderText();
-
-    if (recordVideoState == true) {
-      renderCanvasToVideoFrameAndEncode({
-        canvas,
-        videoEncoder,
-        frameNumber,
-        videofps,
-      });
-      frameNumber++;
+    if (
+      recordVideoState === true &&
+      typeof videoEncoder !== "undefined" &&
+      videoEncoder !== null
+    ) {
+      const now = performance.now();
+      if (now - lastEncodeTime >= 1000 / videofps) {
+        lastEncodeTime = now;
+        renderCanvasToVideoFrameAndEncode({
+          canvas,
+          videoEncoder,
+          frameNumber,
+          videofps,
+        });
+        frameNumber++;
+      }
     }
 
     animationRequest = requestAnimationFrame(loop);
